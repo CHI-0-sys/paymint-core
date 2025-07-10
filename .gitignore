@@ -1,0 +1,13 @@
+node_modules/
+auth_info/
+logs/
+receipts/
+.vscode
+
+.env
+auth_info.json
+debug.log 
+
+
+.DS_Store   
+*.log   .env
