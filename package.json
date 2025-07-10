@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon bot/index.js"
+    "dev": "nodemon bot/index.js",
+    "start": "node bot/index.js"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +23,7 @@
     "baileys": "^6.7.18",
     "body-parser": "^2.2.0",
     "canvas": "^3.1.2",
+    "ci": "^2.3.0",
     "dotenv": "^17.1.0",
     "express": "^5.1.0",
     "moment": "^2.30.1",
