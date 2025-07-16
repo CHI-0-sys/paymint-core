@@ -8,6 +8,7 @@ const qrcode = require('qrcode-terminal');
 const pino = require('pino');
 const express = require('express');
 const webhookRoutes = require('../routes/webhook');
+const app = express();
 
 const {
   default: makeWASocket,
@@ -230,7 +231,7 @@ async function startBot() {
   });
 }
 
-app.use('/weebhoook',webhookRoutes);
+app.use('/webhoook',webhookRoutes);
 app.use(express.json());
 
 
