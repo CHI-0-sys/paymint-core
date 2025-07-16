@@ -3,9 +3,11 @@ const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
 
+
 // Import routes
 const { handlePaystackWebhook } = require('./controllers/webhook');
 const subscriptionRoutes = require('./routes/subscription');
+const bodyParser = require('body-parser');
 
 // Create Express app
 const app = express();
@@ -40,6 +42,12 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+//middleware to capture raw body for paystack
+app.use('/weebhook/paystack',bodyParser.raw({type :'*/*'})); 
+
+//route for paystack webhook
+app.posta('/webhook/paystack', handlePaystackWebhook);
 
 // Start server
 app.listen(PORT, () => {

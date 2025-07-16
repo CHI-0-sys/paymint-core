@@ -1,126 +1,94 @@
-/ controllers/webhook.js
+// controllers/webhook.js
 const crypto = require('crypto');
 const Vendor = require('../models/Vendor');
+const { sendPaymentConfirmation, sendPaymentFailure } = require('../services/whatsapp');
+const { connectWhatsApp } = require('../services/socket'); // We’ll define this below 👇
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET;
 
-// ✅ Validate Paystack webhook signature
-function validatePaystackSignature(signature, body) {
+// ✅ Validate webhook signature
+function validatePaystackSignature(signature, rawBody) {
   const hash = crypto
     .createHmac('sha512', PAYSTACK_SECRET)
-    .update(body)
+    .update(rawBody)
     .digest('hex');
   return hash === signature;
 }
 
-// ✅ Handle Paystack webhook
+// ✅ Webhook handler
 async function handlePaystackWebhook(req, res) {
   try {
     const signature = req.headers['x-paystack-signature'];
-    
-    if (!signature) {
-      console.log('❌ No Paystack signature found');
-      return res.status(400).send('No signature');
-    }
+    const rawBody = req.rawBody;
 
-    // Validate signature
-    const isValid = validatePaystackSignature(signature, req.body);
-    if (!isValid) {
-      console.log('❌ Invalid Paystack signature');
+    if (!signature || !validatePaystackSignature(signature, rawBody)) {
       return res.status(400).send('Invalid signature');
     }
 
-    // Parse the webhook body
-    const event = JSON.parse(req.body);
-    console.log('🔔 Paystack webhook received:', event.event);
+    const event = JSON.parse(rawBody);
+    const { event: type, data } = event;
 
-    // Handle different event types
-    switch (event.event) {
+    switch (type) {
       case 'charge.success':
-        await handleSuccessfulPayment(event.data);
+        await handleSuccessfulPayment(data);
         break;
-      
       case 'charge.failed':
-        await handleFailedPayment(event.data);
+        await handleFailedPayment(data);
         break;
-      
       default:
-        console.log(`ℹ️ Unhandled event type: ${event.event}`);
+        console.log(`ℹ️ Unhandled webhook event: ${type}`);
     }
 
     res.status(200).send('Webhook processed');
   } catch (error) {
-    console.error('❌ Webhook processing error:', error);
+    console.error('❌ Webhook error:', error);
     res.status(500).send('Server error');
   }
 }
 
-// ✅ Handle successful payment
+// ✅ Payment success logic
 async function handleSuccessfulPayment(data) {
-  try {
-    const { metadata, customer, amount } = data;
-    
-    if (!metadata || !metadata.vendor) {
-      console.log('❌ No vendor info in payment metadata');
-      return;
-    }
+  const { metadata, amount, reference, channel } = data;
+  if (!metadata?.vendor) return;
 
-    const vendorPhone = metadata.vendor;
-    console.log(`💳 Processing successful payment for vendor: ${vendorPhone}`);
+  const phone = metadata.vendor;
+  const updatedVendor = await Vendor.findOneAndUpdate(
+    { phone },
+    {
+      plan: 'premium',
+      subscriptionDate: new Date(),
+      subscriptionAmount: amount / 100,
+      paymentStatus: 'paid',
+      paymentReference: reference,
+      paymentMethod: channel,
+      lastPaymentDate: new Date()
+    },
+    { new: true }
+  );
 
-    // Update vendor to premium
-    const vendor = await Vendor.findOneAndUpdate(
-      { phone: vendorPhone },
-      { 
-        plan: 'premium',
-        subscriptionDate: new Date(),
-        subscriptionAmount: amount / 100, // Convert from kobo to naira
-        paymentStatus: 'paid'
-      },
-      { new: true }
-    );
-
-    if (!vendor) {
-      console.log(`❌ Vendor not found: ${vendorPhone}`);
-      return;
-    }
-
-    console.log(`✅ Vendor ${vendorPhone} upgraded to premium successfully`);
-
-    // Optional: Send WhatsApp confirmation message
-    // You can call your WhatsApp bot function here to send a confirmation
-    // await sendWhatsAppConfirmation(vendorPhone, vendor);
-
-  } catch (error) {
-    console.error('❌ Error processing successful payment:', error);
+  if (updatedVendor) {
+    const sock = await connectWhatsApp(); // 👇 Step 2
+    await sendPaymentConfirmation(sock, phone, { amount, reference, channel });
   }
 }
 
-// ✅ Handle failed payment
+// ✅ Payment failure logic
 async function handleFailedPayment(data) {
-  try {
-    const { metadata, customer } = data;
-    
-    if (!metadata || !metadata.vendor) {
-      console.log('❌ No vendor info in failed payment metadata');
-      return;
-    }
+  const { metadata, reference, channel, gateway_response } = data;
+  if (!metadata?.vendor) return;
 
-    const vendorPhone = metadata.vendor;
-    console.log(`❌ Payment failed for vendor: ${vendorPhone}`);
+  const phone = metadata.vendor;
+  await Vendor.findOneAndUpdate(
+    { phone },
+    { paymentStatus: 'failed' }
+  );
 
-    // Update vendor payment status
-    await Vendor.findOneAndUpdate(
-      { phone: vendorPhone },
-      { paymentStatus: 'failed' }
-    );
-
-    // Optional: Send WhatsApp failure notification
-    // await sendWhatsAppFailureNotification(vendorPhone);
-
-  } catch (error) {
-    console.error('❌ Error processing failed payment:', error);
-  }
+  const sock = await connectWhatsApp(); // 👇 Step 2
+  await sendPaymentFailure(sock, phone, {
+    reference,
+    channel,
+    gateway_response
+  });
 }
 
 module.exports = {
