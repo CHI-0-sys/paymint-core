@@ -6,6 +6,8 @@ require('../bot/utils/checkPlan');
 const path = require('path');
 const qrcode = require('qrcode-terminal');
 const pino = require('pino');
+const express = require('express');
+const webhookRoutes = require('../routes/webhook');
 
 const {
   default: makeWASocket,
@@ -227,6 +229,10 @@ async function startBot() {
     }
   });
 }
+
+app.use('/weebhoook',webhookRoutes);
+app.use(express.json());
+
 
 console.log(`${UIUtils.header('WhatsApp Business Bot', '🤖')}`);
 console.log('🚀 Starting bot...');
