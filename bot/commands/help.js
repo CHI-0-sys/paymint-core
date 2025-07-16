@@ -19,12 +19,23 @@ Note: Paid POS
 
 📊 */sales today*  
 Shows today’s total sales.
+ 
+*/email*
+to add business email , for authentication and subscription 
+
+*/reset*
+to reset business if the case may arise but sales record wwill be saved and kept in tack 
+
+
 
 📆 */sales month*  
 See your monthly sales total.
 
 💳 */subscribe*  
-Upgrade to Premium for logo & receipt image.
+Upgrade to Premium for logo & receipt image. 
+
+?*/pay*
+ to choose your best payment option , secure and fast subscription method 
 
 ❓ */help*  
 You're here already 😊

@@ -74,48 +74,48 @@ async function handleOnboarding(sock, msg, from, text) {
         // Clean TikTok handle (remove @ if present)
         state.data.tiktok = text.trim().replace('@', '').toLowerCase();
       }
-      await sock.sendMessage(from, {
-        text: `📱 What's your Twitter/X handle?\n\n_Type "skip" to skip this step_`,
-      });
-      state.step++;
-      break;
+      // await sock.sendMessage(from, {
+      //   text: `📱 What's your Twitter/X handle?\n\n_Type "skip" to skip this step_`,
+      // });
+      // state.step++;
+      // break;
 
-    case 8:
-      if (text.toLowerCase().trim() === 'skip') {
-        state.data.twitter = '';
-      } else {
-        // Clean Twitter handle (remove @ if present)
-        state.data.twitter = text.trim().replace('@', '').toLowerCase();
-      }
-      await sock.sendMessage(from, {
-        text: `📱 What's your Facebook page name?\n\n_Type "skip" to skip this step_`,
-      });
-      state.step++;
-      break;
+    // case 8:
+    //   if (text.toLowerCase().trim() === 'skip') {
+    //     state.data.twitter = '';
+    //   } else {
+    //     // Clean Twitter handle (remove @ if present)
+    //     state.data.twitter = text.trim().replace('@', '').toLowerCase();
+    //   }
+    //   await sock.sendMessage(from, {
+    //     text: `📱 What's your Facebook page name?\n\n_Type "skip" to skip this step_`,
+    //   });
+    //   state.step++;
+    //   break;
 
-    case 9:
-      if (text.toLowerCase().trim() === 'skip') {
-        state.data.facebook = '';
-      } else {
-        state.data.facebook = text.trim().toLowerCase();
-      }
-      await sock.sendMessage(from, {
-        text: `🌐 Do you have a business website?\n\n_Type "skip" to skip this step_`,
-      });
-      state.step++;
-      break;
+    // case 9:
+    //   if (text.toLowerCase().trim() === 'skip') {
+    //     state.data.facebook = '';
+    //   } else {
+    //     state.data.facebook = text.trim().toLowerCase();
+    //   }
+    //   await sock.sendMessage(from, {
+    //     text: `🌐 Do you have a business website?\n\n_Type "skip" to skip this step_`,
+    //   });
+    //   state.step++;
+    //   break;
 
-    case 10:
-      if (text.toLowerCase().trim() === 'skip') {
-        state.data.website = '';
-      } else {
-        // Add https:// if not present
-        let website = text.trim();
-        if (website && !website.startsWith('http')) {
-          website = `https://${website}`;
-        }
-        state.data.website = website;
-      }
+    // case 10:
+    //   if (text.toLowerCase().trim() === 'skip') {
+    //     state.data.website = '';
+    //   } else {
+    //     // Add https:// if not present
+    //     let website = text.trim();
+    //     if (website && !website.startsWith('http')) {
+    //       website = `https://${website}`;
+    //     }
+    //     state.data.website = website;
+    //   }
       
       // Marketing preferences setup
       await sock.sendMessage(from, {
@@ -181,12 +181,12 @@ async function completeOnboarding(sock, from, state) {
       twitter: state.data.twitter || '',
       facebook: state.data.facebook || '',
       website: state.data.website || '',
-      enableSocialMarketing: !!(state.data.instagram || state.data.tiktok || state.data.twitter || state.data.facebook),
+      enableSocialMarketing: !!(state.data.instagram || state.data.tiktok),
       enableShareIncentive: state.data.enableShareIncentive || false,
       shareIncentiveText: state.data.shareIncentiveText || '',
       updatedAt: new Date(),
     };
-
+  
     if (existing) {
       await Vendor.updateOne({ phone: from }, { $set: vendorData });
     } else {
@@ -206,9 +206,9 @@ async function completeOnboarding(sock, from, state) {
     const socials = [];
     if (state.data.instagram) socials.push(`📷 Instagram: @${state.data.instagram}`);
     if (state.data.tiktok) socials.push(`🎵 TikTok: @${state.data.tiktok}`);
-    if (state.data.twitter) socials.push(`🐦 Twitter: @${state.data.twitter}`);
-    if (state.data.facebook) socials.push(`📘 Facebook: ${state.data.facebook}`);
-    if (state.data.website) socials.push(`🌐 Website: ${state.data.website}`);
+    // if (state.data.twitter) socials.push(`🐦 Twitter: @${state.data.twitter}`);
+    // if (state.data.facebook) socials.push(`📘 Facebook: ${state.data.facebook}`);
+    // if (state.data.website) socials.push(`🌐 Website: ${state.data.website}`);
     
     if (socials.length > 0) {
       socialSummary = `\n\n📱 *Your Social Media:*\n${socials.join('\n')}`;
