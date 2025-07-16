@@ -1,10 +1,12 @@
+// services/paystack.js
 const axios = require("axios");
-const crypto = require('crypto');
+const crypto = require("crypto");
 const Vendor = require("../models/Vendor");
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET;
 const BASE_URL = process.env.BASE_URL || "https://paymint.ng";
 
+// Paystack API setup
 const paystack = axios.create({
   baseURL: "https://api.paystack.co",
   headers: {
@@ -13,31 +15,37 @@ const paystack = axios.create({
   },
 });
 
-// ✅ Generate payment link with bank transfer enabled
+// ✅ Generate a payment link
 async function generateSubscriptionLink({ email, phone }) {
   try {
-    const res = await paystack.post('/transaction/initialize', {
+    const res = await paystack.post("/transaction/initialize", {
       email,
       amount: 1000 * 100, // ₦1000 in kobo
-      currency: 'NGN',
-      channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'], // Enable all payment methods
+      currency: "NGN",
+      channels: [
+        "card",
+        "bank",
+        "ussd",
+        "qr",
+        "mobile_money",
+        "bank_transfer",
+      ],
       metadata: {
         vendor: phone,
-        plan: 'premium',
-        cancel_action: 'https://paymint.ng/subscribe/cancel'
+        plan: "premium",
+        cancel_action: `${BASE_URL}/subscribe/cancel`,
       },
       callback_url: `${BASE_URL}/subscribe/success`,
-      // Bank transfer specific settings
-      bearer: 'account', // Who bears Paystack charges
+      bearer: "account",
       custom_fields: [
         {
           display_name: "Vendor Phone",
           variable_name: "vendor_phone",
-          value: phone
-        }
-      ]
+          value: phone,
+        },
+      ],
     });
-    
+
     return res.data.data.authorization_url;
   } catch (err) {
     console.error("❌ Paystack init error:", err.response?.data || err.message);
@@ -45,38 +53,36 @@ async function generateSubscriptionLink({ email, phone }) {
   }
 }
 
-// ✅ Create dedicated bank transfer payment
+// ✅ Create a dedicated bank transfer payment
 async function createBankTransferPayment({ email, phone }) {
   try {
-    // Step 1: Initialize transaction
-    const initRes = await paystack.post('/transaction/initialize', {
+    const initRes = await paystack.post("/transaction/initialize", {
       email,
       amount: 1000 * 100,
-      currency: 'NGN',
-      channels: ['bank_transfer'], // Only bank transfer
+      currency: "NGN",
+      channels: ["bank_transfer"],
       metadata: {
         vendor: phone,
-        plan: 'premium',
-        payment_method: 'bank_transfer'
-      }
+        plan: "premium",
+        payment_method: "bank_transfer",
+      },
     });
 
-    const { reference, access_code } = initRes.data.data;
+    const { reference } = initRes.data.data;
 
-    // Step 2: Generate dedicated account for this transaction
-    const accountRes = await paystack.post('/dedicated_account', {
+    const accountRes = await paystack.post("/dedicated_account", {
       email,
-      first_name: 'Paymint',
-      last_name: 'Customer',
+      first_name: "Paymint",
+      last_name: "Customer",
       phone,
-      preferred_bank: 'wema-bank', // or 'titan-bank'
-      country: 'NG',
+      preferred_bank: "wema-bank", // optional: 'titan-bank'
+      country: "NG",
       amount: 1000 * 100,
-      currency: 'NGN',
+      currency: "NGN",
       metadata: {
         vendor: phone,
-        reference: reference
-      }
+        reference,
+      },
     });
 
     return {
@@ -86,78 +92,84 @@ async function createBankTransferPayment({ email, phone }) {
       bank_name: accountRes.data.data.bank.name,
       bank_code: accountRes.data.data.bank.code,
       amount: 1000,
-      expires_at: accountRes.data.data.expires_at
+      expires_at: accountRes.data.data.expires_at,
     };
-
   } catch (err) {
     console.error("❌ Bank transfer creation error:", err.response?.data || err.message);
     return null;
   }
 }
 
-// ✅ Handle different webhook events (updated)
+// ✅ Verify incoming webhook from Paystack
+function validateWebhook(req) {
+  const hash = crypto
+    .createHmac("sha512", PAYSTACK_SECRET)
+    .update(JSON.stringify(req.body))
+    .digest("hex");
+
+  return hash === req.headers["x-paystack-signature"];
+}
+
+// ✅ Handle incoming Paystack webhook events
 async function handleWebhook(eventData) {
   try {
     console.log(`🔔 Webhook event: ${eventData.event}`);
-    
+
     switch (eventData.event) {
-      case 'charge.success':
+      case "charge.success":
         await handleSuccessfulCharge(eventData.data);
         break;
-      
-      case 'charge.failed':
+
+      case "charge.failed":
         await handleFailedCharge(eventData.data);
         break;
-      
-      // Bank transfer specific events
-      case 'transfer.success':
+
+      case "transfer.success":
         await handleSuccessfulTransfer(eventData.data);
         break;
-      
-      case 'transfer.failed':
+
+      case "transfer.failed":
         await handleFailedTransfer(eventData.data);
         break;
-      
-      // Dedicated account events
-      case 'dedicated_account.assign.success':
+
+      case "dedicated_account.assign.success":
         await handleDedicatedAccountAssigned(eventData.data);
         break;
-      
-      case 'dedicated_account.assign.failed':
+
+      case "dedicated_account.assign.failed":
         await handleDedicatedAccountFailed(eventData.data);
         break;
-      
+
       default:
         console.log(`ℹ️ Unhandled webhook event: ${eventData.event}`);
     }
   } catch (error) {
-    console.error('❌ Webhook handling error:', error);
+    console.error("❌ Webhook handling error:", error);
     throw error;
   }
 }
 
-// ✅ Handle successful charge (works for both card and bank transfer)
+// ✅ On successful charge (card or transfer)
 async function handleSuccessfulCharge(data) {
   const { metadata, customer, amount, reference, channel } = data;
-  
+
   if (!metadata || !metadata.vendor) {
-    console.log('❌ No vendor metadata in successful charge');
+    console.log("❌ No vendor metadata in successful charge");
     return;
   }
 
   const vendorPhone = metadata.vendor;
-  
-  // Update vendor subscription
+
   await Vendor.findOneAndUpdate(
     { phone: vendorPhone },
-    { 
-      plan: 'premium',
+    {
+      plan: "premium",
       subscriptionDate: new Date(),
       subscriptionAmount: amount / 100,
-      paymentStatus: 'paid',
+      paymentStatus: "paid",
       paymentReference: reference,
-      paymentMethod: channel, // 'card', 'bank_transfer', etc.
-      lastPaymentDate: new Date()
+      paymentMethod: channel,
+      lastPaymentDate: new Date(),
     },
     { new: true }
   );
@@ -165,47 +177,53 @@ async function handleSuccessfulCharge(data) {
   console.log(`✅ Vendor ${vendorPhone} upgraded to premium via ${channel}`);
 }
 
-// ✅ Handle bank transfer specific success
-async function handleSuccessfulTransfer(data) {
-  // This is for outgoing transfers, not incoming payments
-  // Usually not needed for subscription payments
-  console.log('💸 Transfer successful:', data.reference);
+// Optional: handle failed charge
+async function handleFailedCharge(data) {
+  console.log("❌ Payment failed:", data.reference);
 }
 
-// ✅ Handle dedicated account assignment
+// Optional: outgoing transfer success (usually not used here)
+async function handleSuccessfulTransfer(data) {
+  console.log("💸 Transfer successful:", data.reference);
+}
+
+// Optional: outgoing transfer failure
+async function handleFailedTransfer(data) {
+  console.log("❌ Transfer failed:", data.reference);
+}
+
+// ✅ Handle dedicated account assigned
 async function handleDedicatedAccountAssigned(data) {
-  const { customer, metadata } = data;
-  
+  const { metadata } = data;
+
   if (metadata && metadata.vendor) {
-    console.log(`🏦 Dedicated account assigned to vendor: ${metadata.vendor}`);
-    
-    // You can store the dedicated account info if needed
     await Vendor.findOneAndUpdate(
       { phone: metadata.vendor },
-      { 
+      {
         dedicatedAccount: {
           account_number: data.account_number,
           account_name: data.account_name,
           bank_name: data.bank.name,
-          assigned_at: new Date()
-        }
+          assigned_at: new Date(),
+        },
       }
     );
+    console.log(`🏦 Dedicated account assigned to vendor: ${metadata.vendor}`);
   }
 }
 
 // ✅ Handle dedicated account assignment failure
 async function handleDedicatedAccountFailed(data) {
-  console.log('❌ Dedicated account assignment failed:', data);
+  console.log("❌ Dedicated account assignment failed:", data);
 }
 
-// ✅ Get transaction details
+// ✅ Verify transaction manually
 async function getTransactionDetails(reference) {
   try {
     const res = await paystack.get(`/transaction/verify/${reference}`);
     return res.data.data;
   } catch (err) {
-    console.error("❌ Transaction details error:", err.response?.data || err.message);
+    console.error("❌ Transaction verification error:", err.response?.data || err.message);
     return null;
   }
 }
@@ -215,5 +233,5 @@ module.exports = {
   createBankTransferPayment,
   validateWebhook,
   handleWebhook,
-  verifyTransaction: getTransactionDetails
+  verifyTransaction: getTransactionDetails,
 };
