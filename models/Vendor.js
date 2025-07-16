@@ -1,4 +1,3 @@
-// models/Vendor.js
 const mongoose = require("mongoose");
 
 const VendorSchema = new mongoose.Schema({
@@ -6,81 +5,73 @@ const VendorSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true, // WhatsApp number
+    trim: true,
+  },
+  email: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    default: '', // Email used for Paystack & notifications
   },
   businessName: {
     type: String,
     required: true,
+    trim: true,
   },
   logoUrl: {
-    type: String, // Path to uploaded logo image
-    default: '',
+    type: String,
+    default: '', // Business logo or avatar URL
   },
-  // Business contact information
   contact: {
     type: String,
-    default: '', // Additional contact info
+    default: '', // Additional phone/contact info
   },
   address: {
     type: String,
-    default: '', // Business address
+    default: '',
   },
-  // Social media handles for viral marketing
-  instagram: {
-    type: String,
-    default: '', // Instagram handle (without @)
-    trim: true,
-    lowercase: true,
-  },
-  tiktok: {
-    type: String,
-    default: '', // TikTok handle (without @)
-    trim: true,
-    lowercase: true,
-  },
-  twitter: {
-    type: String,
-    default: '', // Twitter/X handle (without @)
-    trim: true,
-    lowercase: true,
-  },
-  facebook: {
-    type: String,
-    default: '', // Facebook page name or handle
-    trim: true,
-  },
-  youtube: {
-    type: String,
-    default: '', // YouTube channel handle or ID
-    trim: true,
-  },
-  website: {
-    type: String,
-    default: '', // Business website URL
-    trim: true,
-  },
-  // Marketing preferences
-  enableSocialMarketing: {
-    type: Boolean,
-    default: true, // Show social media section on receipts
-  },
-  enableShareIncentive: {
-    type: Boolean,
-    default: true, // Show share incentive message
-  },
+
+  // Social Media Handles
+  instagram: { type: String, default: '', trim: true, lowercase: true },
+  tiktok: { type: String, default: '', trim: true, lowercase: true },
+  twitter: { type: String, default: '', trim: true, lowercase: true },
+  facebook: { type: String, default: '', trim: true },
+  youtube: { type: String, default: '', trim: true },
+  website: { type: String, default: '', trim: true },
+
+  // Features & Toggles
+  enableSocialMarketing: { type: Boolean, default: true },
+  enableShareIncentive: { type: Boolean, default: true },
   shareIncentiveText: {
     type: String,
     default: '🎁 Share this receipt & get 5% off your next purchase!',
   },
-  // Subscription details
+
+  // Subscription & Payments
   plan: {
     type: String,
-    enum: ["free", "premium"],
-    default: "free",
+    enum: ['free', 'premium'],
+    default: 'free',
+  },
+  reference: {
+    type: String,
+    default: '', // Paystack transaction reference (latest)
+  },
+  subscriptionDate: {
+    type: Date,
+    default: null, // Date of upgrade
   },
   expiresOn: {
     type: Date,
-    default: null, // Only set if subscribed
+    default: null,
   },
+  subscriptionStatus: {
+    type: String,
+    enum: ['free', 'premium'],
+    default: 'free',
+  },
+
+  // Metadata
   createdAt: {
     type: Date,
     default: Date.now,
@@ -91,14 +82,14 @@ const VendorSchema = new mongoose.Schema({
   },
 });
 
-// Update the updatedAt field before saving
-VendorSchema.pre('save', function(next) {
+// 🔄 Middleware: Track updated time
+VendorSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
-// Virtual for getting social media handles that are not empty
-VendorSchema.virtual('activeSocials').get(function() {
+// ✅ Virtual: List active socials
+VendorSchema.virtual('activeSocials').get(function () {
   const socials = [];
   if (this.instagram) socials.push({ platform: 'instagram', handle: this.instagram });
   if (this.tiktok) socials.push({ platform: 'tiktok', handle: this.tiktok });
@@ -108,13 +99,13 @@ VendorSchema.virtual('activeSocials').get(function() {
   return socials;
 });
 
-// Method to check if vendor has any social media configured
-VendorSchema.methods.hasSocialMedia = function() {
+// ✅ Check if vendor has any social media
+VendorSchema.methods.hasSocialMedia = function () {
   return !!(this.instagram || this.tiktok || this.twitter || this.facebook || this.youtube);
 };
 
-// Method to get formatted social media URLs
-VendorSchema.methods.getSocialUrls = function() {
+// ✅ Get formatted social URLs
+VendorSchema.methods.getSocialUrls = function () {
   const urls = {};
   if (this.instagram) urls.instagram = `https://instagram.com/${this.instagram}`;
   if (this.tiktok) urls.tiktok = `https://tiktok.com/@${this.tiktok}`;

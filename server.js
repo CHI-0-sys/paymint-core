@@ -1,51 +1,48 @@
-// server.js
 require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
-const { validateWebhook } = require('./services/paystack');
-const Vendor = require('./models/Vendor');
+const mongoose = require('mongoose');
+const path = require('path');
+
+// Import routes
+const { handlePaystackWebhook } = require('./controllers/webhook');
+const subscriptionRoutes = require('./routes/subscription');
+
+// Create Express app
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Raw body for signature validation
-app.use(bodyParser.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err);
+    process.exit(1);
+  });
 
-// Webhook route
-app.post('/webhook/paystack', async (req, res) => {
-  const signature = req.headers['x-paystack-signature'];
-  const isValid = validateWebhook(req.headers, req.body);
+// ✅ Paystack webhook (needs raw body)
+app.post('/api/paystack/webhook', express.raw({ type: '*/*' }), handlePaystackWebhook);
 
-  if (!isValid) {
-    console.log("❌ Invalid webhook signature");
-    return res.status(400).send("Invalid signature");
-  }
+// ✅ Normal middleware (for other routes)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-  const event = req.body;
+// ✅ Routes
+app.use('/subscribe', subscriptionRoutes);
 
-  if (event.event === "charge.success") {
-    const metadata = event.data.metadata || {};
-    const phone = metadata.vendor || "";
-
-    if (!phone) {
-      console.log("⚠️ Vendor phone not found in metadata");
-      return res.sendStatus(200);
-    }
-
-    const expires = new Date();
-    expires.setMonth(expires.getMonth() + 1);
-
-    await Vendor.findOneAndUpdate(
-      { phone },
-      { plan: "premium", expiresOn: expires },
-      { upsert: false }
-    );
-
-    console.log(`✅ Upgraded ${phone} to premium until ${expires.toDateString()}`);
-  }
-
-  res.sendStatus(200);
+// ✅ Root test route
+app.get('/', (req, res) => {
+  res.send('🚀 Paymint API is running...');
 });
 
+// ✅ Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Webhook listening on port ${PORT}`);
+  console.log(`🚀 Server listening on port ${PORT}`);
+  console.log(`🔗 Webhook URL: ${process.env.BASE_URL || 'http://localhost:' + PORT}/api/paystack/webhook`);
 });
