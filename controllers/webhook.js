@@ -1,7 +1,7 @@
 // controllers/webhook.js
 const crypto = require('crypto');
 const Vendor = require('../models/Vendor');
-const { sendPaymentConfirmation, sendPaymentFailure } = require('../services/whatsapp');
+const { sendPaymentConfirmation, sendPaymentFailure } = require('../services/whastapp'); // We’ll define these below 👇
 const { connectWhatsApp } = require('../services/socket'); // We’ll define this below 👇
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET;
