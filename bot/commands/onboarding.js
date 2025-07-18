@@ -74,79 +74,6 @@ async function handleOnboarding(sock, msg, from, text) {
         // Clean TikTok handle (remove @ if present)
         state.data.tiktok = text.trim().replace('@', '').toLowerCase();
       }
-      // await sock.sendMessage(from, {
-      //   text: `📱 What's your Twitter/X handle?\n\n_Type "skip" to skip this step_`,
-      // });
-      // state.step++;
-      // break;
-
-    // case 8:
-    //   if (text.toLowerCase().trim() === 'skip') {
-    //     state.data.twitter = '';
-    //   } else {
-    //     // Clean Twitter handle (remove @ if present)
-    //     state.data.twitter = text.trim().replace('@', '').toLowerCase();
-    //   }
-    //   await sock.sendMessage(from, {
-    //     text: `📱 What's your Facebook page name?\n\n_Type "skip" to skip this step_`,
-    //   });
-    //   state.step++;
-    //   break;
-
-    // case 9:
-    //   if (text.toLowerCase().trim() === 'skip') {
-    //     state.data.facebook = '';
-    //   } else {
-    //     state.data.facebook = text.trim().toLowerCase();
-    //   }
-    //   await sock.sendMessage(from, {
-    //     text: `🌐 Do you have a business website?\n\n_Type "skip" to skip this step_`,
-    //   });
-    //   state.step++;
-    //   break;
-
-    // case 10:
-    //   if (text.toLowerCase().trim() === 'skip') {
-    //     state.data.website = '';
-    //   } else {
-    //     // Add https:// if not present
-    //     let website = text.trim();
-    //     if (website && !website.startsWith('http')) {
-    //       website = `https://${website}`;
-    //     }
-    //     state.data.website = website;
-    //   }
-      
-      // Marketing preferences setup
-      await sock.sendMessage(from, {
-        text: `🎁 *Marketing Boost Setup*\n\nWould you like to show a share incentive on your receipts to encourage customers to share and bring more business?\n\nExample: "🎁 Share this receipt & get 5% off your next purchase!"\n\nReply *yes* to enable or *no* to disable`,
-      });
-      state.step++;
-      break;
-
-    case 11:
-      const enableIncentive = text.toLowerCase().trim() === 'yes';
-      state.data.enableShareIncentive = enableIncentive;
-      
-      if (enableIncentive) {
-        await sock.sendMessage(from, {
-          text: `💬 What incentive message would you like to show?\n\nExample: "🎁 Share this receipt & get 5% off your next purchase!"\n\n_Or type "default" to use our suggested message_`,
-        });
-        state.step++;
-      } else {
-        state.data.shareIncentiveText = '';
-        // Skip to completion
-        await completeOnboarding(sock, from, state);
-        return;
-      }
-      break;
-
-    case 12:
-      if (text.toLowerCase().trim() === 'default') {
-        state.data.shareIncentiveText = '🎁 Share this receipt & get 5% off your next purchase!';
-      } else {
-        state.data.shareIncentiveText = text.trim();
-      }
       
       // Complete onboarding
       await completeOnboarding(sock, from, state);
@@ -161,8 +88,8 @@ async function handleOnboarding(sock, msg, from, text) {
       return;
   }
   
-  // 🧠 Only set state if onboarding is still in progress
-  if (state.step <= 12) {
+  // Only set state if onboarding is still in progress
+  if (state.step <= 7) {
     onboardingStates.set(from, state);
   }
 }
@@ -176,14 +103,10 @@ async function completeOnboarding(sock, from, state) {
       businessName: state.data.businessName,
       contact: state.data.contact,
       address: state.data.address,
+      description: state.data.description,
       instagram: state.data.instagram || '',
       tiktok: state.data.tiktok || '',
-      twitter: state.data.twitter || '',
-      facebook: state.data.facebook || '',
-      website: state.data.website || '',
       enableSocialMarketing: !!(state.data.instagram || state.data.tiktok),
-      enableShareIncentive: state.data.enableShareIncentive || false,
-      shareIncentiveText: state.data.shareIncentiveText || '',
       updatedAt: new Date(),
     };
   
@@ -198,7 +121,7 @@ async function completeOnboarding(sock, from, state) {
       });
     }
 
-    // ✅ Onboarding complete — remove state
+    // Onboarding complete — remove state
     onboardingStates.delete(from);
     
     // Send completion message with summary
@@ -206,20 +129,13 @@ async function completeOnboarding(sock, from, state) {
     const socials = [];
     if (state.data.instagram) socials.push(`📷 Instagram: @${state.data.instagram}`);
     if (state.data.tiktok) socials.push(`🎵 TikTok: @${state.data.tiktok}`);
-    // if (state.data.twitter) socials.push(`🐦 Twitter: @${state.data.twitter}`);
-    // if (state.data.facebook) socials.push(`📘 Facebook: ${state.data.facebook}`);
-    // if (state.data.website) socials.push(`🌐 Website: ${state.data.website}`);
     
     if (socials.length > 0) {
       socialSummary = `\n\n📱 *Your Social Media:*\n${socials.join('\n')}`;
     }
-    
-    const incentiveInfo = state.data.enableShareIncentive 
-      ? `\n\n🎁 *Share Incentive:* ${state.data.shareIncentiveText}`
-      : '';
 
     await sock.sendMessage(from, {
-      text: `✅ *Business Setup Complete!*\n\n🏢 *${state.data.businessName}*\n📞 ${state.data.contact}\n📍 ${state.data.address}${socialSummary}${incentiveInfo}\n\n🎯 *Your receipts will now include:*\n• ✅ Verification badge\n• 📱 Social media links (if added)\n• 🎁 Share incentives (if enabled)\n• 📊 Professional barcode\n\n*Type /receipt anytime to create a receipt.*\n*Type /settings to update your business info.*`,
+      text: `✅ *Business Setup Complete!*\n\n🏢 *${state.data.businessName}*\n📞 ${state.data.contact}\n📍 ${state.data.address}${socialSummary}\n\n🎯 *Your receipts will now include:*\n• ✅ Verification badge\n• 📱 Social media links (if added)\n• 📊 Professional barcode\n\n*Type /receipt anytime to create a receipt.*\n*Type /settings to update your business info.*`,
     });
     
   } catch (error) {

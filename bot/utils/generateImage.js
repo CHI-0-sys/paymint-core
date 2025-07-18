@@ -25,9 +25,8 @@ async function generateReceiptImage({ vendor, items, total, note, date, time }) 
   const headerHeight = logoSize + spacing + 80;
   const itemsHeight = items.length * lineHeight + 40;
   const vatHeight = 30;
-  const socialHeight = 120; // Space for social media section
   const footerHeight = 160;
-  const height = padding * 2 + headerHeight + itemsHeight + vatHeight + socialHeight + footerHeight;
+  const height = padding * 2 + headerHeight + itemsHeight + vatHeight + footerHeight;
 
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
@@ -157,40 +156,9 @@ async function generateReceiptImage({ vendor, items, total, note, date, time }) 
     currentY += 8;
   }
 
-  // Social Media Marketing Section
+  // Separator line
   drawSolidLine(ctx, padding, currentY, width - padding, currentY);
   currentY += 18;
-
-  // Social media header
-  ctx.font = 'bold 14px Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#000000';
-  ctx.fillText('Stay Connected! 📱', width / 2, currentY);
-  currentY += 20;
-
-  // Social media links
-  ctx.font = '11px Arial, sans-serif';
-  ctx.fillText('Follow us for updates, deals & more!', width / 2, currentY);
-  currentY += 18;
-
-  // Instagram section
-  if (vendor.instagram) {
-    drawSocialMediaBox(ctx, padding, currentY, (width - padding * 3) / 2, 35, 'Instagram', vendor.instagram, '#E1306C');
-  }
-  
-  // TikTok section
-  if (vendor.tiktok) {
-    drawSocialMediaBox(ctx, padding + (width - padding * 3) / 2 + 10, currentY, (width - padding * 3) / 2, 35, 'TikTok', vendor.tiktok, '#000000');
-  }
-  
-  currentY += 50;
-
-  // Viral loop incentive
-  ctx.font = 'bold 10px Arial, sans-serif';
-  ctx.fillStyle = '#ff6b35';
-  ctx.textAlign = 'center';
-  ctx.fillText('🎁 Share this receipt & get 5% off your next purchase!', width / 2, currentY);
-  currentY += 15;
 
   // Thank you message
   ctx.font = 'bold 14px Arial, sans-serif';
@@ -222,33 +190,6 @@ function drawVerificationBadge(ctx, x, y, width, height) {
   ctx.font = 'bold 8px Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('✓ VERIFIED', x + width/2, y + height/2 + 3);
-}
-
-function drawSocialMediaBox(ctx, x, y, width, height, platform, handle, color) {
-  // Border
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x, y, width, height);
-  
-  // Background
-  ctx.fillStyle = '#f8f9fa';
-  ctx.fillRect(x + 1, y + 1, width - 2, height - 2);
-  
-  // Platform name
-  ctx.fillStyle = color;
-  ctx.font = 'bold 9px Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(platform, x + width/2, y + 12);
-  
-  // Handle
-  ctx.fillStyle = '#000000';
-  ctx.font = '8px Arial, sans-serif';
-  ctx.fillText(`@${handle}`, x + width/2, y + 24);
-  
-  // Click indicator
-  ctx.fillStyle = '#666666';
-  ctx.font = '7px Arial, sans-serif';
-  ctx.fillText('👆 Tap to follow', x + width/2, y + 33);
 }
 
 function drawSolidLine(ctx, x1, y1, x2, y2) {
